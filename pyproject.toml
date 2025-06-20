@@ -1,0 +1,28 @@
+[project]
+name = "llm-claude-code"
+version = "0.1"
+description = "LLM plugin to use Claude Code"
+readme = "README.md"
+authors = [{name = "nikkie"}]
+license = "Apache-2.0"
+classifiers = []
+requires-python = ">=3.9"
+dependencies = [
+    "llm"
+]
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project.urls]
+Homepage = "https://github.com/ftnext/llm-claude-code"
+Changelog = "https://github.com/ftnext/llm-claude-code/releases"
+Issues = "https://github.com/ftnext/llm-claude-code/issues"
+CI = "https://github.com/ftnext/llm-claude-code/actions"
+
+[project.entry-points.llm]
+claude_code = "llm_claude_code"
+
+[project.optional-dependencies]
+test = ["pytest"]
