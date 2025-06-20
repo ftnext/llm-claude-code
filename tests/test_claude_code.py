@@ -17,7 +17,6 @@ def test_model_registration():
     """Test that the Claude Code model is registered"""
     model = ClaudeCode()
     assert model.model_id == "claude-code"
-    assert "cc" in model.aliases
     assert model.can_stream is True
 
 

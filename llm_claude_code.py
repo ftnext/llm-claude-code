@@ -26,7 +26,6 @@ class ProcessError(Exception):
 
 class ClaudeCode(llm.Model):
     model_id = "claude-code"
-    aliases = ("cc",)
     can_stream = True
 
     def execute(self, prompt, stream, response, conversation=None):
@@ -187,4 +186,4 @@ class ClaudeCode(llm.Model):
 
 @llm.hookimpl
 def register_models(register):
-    register(ClaudeCode())
+    register(ClaudeCode(), aliases=("cc",))
