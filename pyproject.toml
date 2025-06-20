@@ -1,14 +1,23 @@
 [project]
 name = "llm-claude-code"
-version = "0.1"
-description = "LLM plugin to use Claude Code"
+version = "0.1.0"
+description = "LLM plugin for Claude Code SDK integration"
 readme = "README.md"
 authors = [{name = "nikkie"}]
 license = "Apache-2.0"
-classifiers = []
-requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.10"
 dependencies = [
-    "llm"
+    "llm>=0.13",
+    "claude-code-sdk>=0.0.11",
+    "anyio>=3.0.0",
 ]
 
 [build-system]
@@ -25,4 +34,5 @@ CI = "https://github.com/ftnext/llm-claude-code/actions"
 claude_code = "llm_claude_code"
 
 [project.optional-dependencies]
-test = ["pytest"]
+test = ["pytest>=7.0", "pytest-asyncio>=0.21.0"]
+dev = ["ruff"]
