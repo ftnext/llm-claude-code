@@ -92,7 +92,7 @@ class ClaudeCode(llm.Model):
 
             async for message in query(
                 prompt=prompt.prompt,
-                options=ClaudeCodeOptions(max_turns=1, allowed_tools=[]),
+                options=ClaudeCodeOptions(max_turns=1, allowed_tools=["Read", "Write"]),
             ):
                 messages.append(message)
 
@@ -107,10 +107,35 @@ class ClaudeCode(llm.Model):
                     elif isinstance(message.content, list):
                         # Handle list of TextBlock objects
                         for block in message.content:
+                            # Handle ToolUseBlock
+                            if hasattr(block, "name") or "ToolUse" in str(type(block)):
+                                tool_name = getattr(block, "name", "Unknown")
+                                tool_input = getattr(block, "input", {})
+                                if tool_name == "Write":
+                                    file_path = tool_input.get("file_path", "unknown")
+                                    result_text += f"\n🔧 [Tool: Write] Creating file '{file_path}'\n"
+                                elif tool_name == "Read":
+                                    file_path = tool_input.get("file_path", "unknown")
+                                    result_text += f"\n🔧 [Tool: Read] Reading file '{file_path}'\n"
+                                else:
+                                    result_text += f"\n🔧 [Tool: {tool_name}] Executing\n"
+                                continue
+                            # Handle tool result blocks
+                            elif hasattr(block, "type") and "tool_result" in str(getattr(block, "type", "")):
+                                result_text += "✅ Tool execution completed\n"
+                                continue
+                            # Handle text blocks
                             if hasattr(block, "text"):
                                 result_text += block.text
+                            elif hasattr(block, "type") and block.type == "text":
+                                result_text += getattr(block, "text", "")
                             else:
-                                result_text += str(block)
+                                # Only include if it doesn't look like a tool block
+                                block_str = str(block)
+                                if not block_str.startswith(
+                                    "ToolUse"
+                                ) and not block_str.startswith("{'tool"):
+                                    result_text += block_str
                     else:
                         result_text += str(message.content)
 
@@ -124,7 +149,7 @@ class ClaudeCode(llm.Model):
         try:
             async for message in query(
                 prompt=prompt.prompt,
-                options=ClaudeCodeOptions(max_turns=1, allowed_tools=[]),
+                options=ClaudeCodeOptions(max_turns=1, allowed_tools=["Read", "Write"]),
             ):
                 if hasattr(message, "content") and message.content:
                     if isinstance(message.content, str):
@@ -138,14 +163,46 @@ class ClaudeCode(llm.Model):
                     elif isinstance(message.content, list):
                         # Handle list of TextBlock objects
                         for block in message.content:
+                            # Handle ToolUseBlock
+                            if hasattr(block, "name") or "ToolUse" in str(type(block)):
+                                tool_name = getattr(block, "name", "Unknown")
+                                tool_input = getattr(block, "input", {})
+                                if tool_name == "Write":
+                                    file_path = tool_input.get("file_path", "unknown")
+                                    formatted_text = self._format_output(f"\n🔧 [Tool: Write] Creating file '{file_path}'\n")
+                                    yield formatted_text
+                                elif tool_name == "Read":
+                                    file_path = tool_input.get("file_path", "unknown")
+                                    formatted_text = self._format_output(f"\n🔧 [Tool: Read] Reading file '{file_path}'\n")
+                                    yield formatted_text
+                                else:
+                                    formatted_text = self._format_output(f"\n🔧 [Tool: {tool_name}] Executing\n")
+                                    yield formatted_text
+                                continue
+                            # Handle tool result blocks
+                            elif hasattr(block, "type") and "tool_result" in str(getattr(block, "type", "")):
+                                formatted_text = self._format_output("✅ Tool execution completed\n")
+                                yield formatted_text
+                                continue
+                            # Handle text blocks
                             if hasattr(block, "text"):
                                 formatted_text = self._format_output(block.text)
                                 if formatted_text.strip():
                                     yield formatted_text
-                            else:
-                                formatted_text = self._format_output(str(block))
+                            elif hasattr(block, "type") and block.type == "text":
+                                text = getattr(block, "text", "")
+                                formatted_text = self._format_output(text)
                                 if formatted_text.strip():
                                     yield formatted_text
+                            else:
+                                # Only include if it doesn't look like a tool block
+                                block_str = str(block)
+                                if not block_str.startswith(
+                                    "ToolUse"
+                                ) and not block_str.startswith("{'tool"):
+                                    formatted_text = self._format_output(block_str)
+                                    if formatted_text.strip():
+                                        yield formatted_text
                     else:
                         formatted_text = self._format_output(str(message.content))
                         if formatted_text.strip():
@@ -168,9 +225,12 @@ class ClaudeCode(llm.Model):
                 continue
 
             # Color coding for different message types
-            if line.startswith("[Tool:"):
+            if line.startswith("🔧 [Tool:") or line.startswith("[Tool:"):
                 # Blue color for tool messages
                 formatted_lines.append(f"\033[34m{line}\033[0m")
+            elif line.startswith("✅"):
+                # Green color for success messages
+                formatted_lines.append(f"\033[32m{line}\033[0m")
             elif "error" in line.lower() or "failed" in line.lower():
                 # Red color for errors
                 formatted_lines.append(f"\033[31m{line}\033[0m")
