@@ -34,14 +34,15 @@ llm -m cc "hello worldを出力するスクリプトを作成"
 - Claude Code CLIの認証設定を継承
 
 ### 3. ツール使用
-- 初期実装ではツール使用は無効（`allowed_tools=[]`）
-- 将来的な拡張のため、内部的にはツール結果の処理機構を実装
+- ReadとWriteツールが使用可能（`allowed_tools=["Read", "Write"]`）
+- ツール実行過程をリアルタイムで表示
+- ファイル操作とコード生成が可能
 
 ### 4. オプション
 - 初期実装ではLLMオプション（`-o`）は提供しない
 - Claude Code SDKのデフォルト設定を使用
 - `max_turns=1`で単発応答に制限
-- `allowed_tools=[]`でツール使用を無効化
+- `allowed_tools=["Read", "Write"]`でファイル操作を有効化
 
 ### 5. 出力形式
 
@@ -57,18 +58,20 @@ Claude Code SDKからのメッセージを処理：
 フィボナッチ数列を生成する関数を作成します。
 
 # ツール使用結果（色付き表示）
-[Tool: Read] ファイル 'example.py' を読み込みました
-[Tool: Write] ファイル 'fibonacci.py' を作成しました
+🔧 [Tool: Read] Reading file 'example.py'
+🔧 [Tool: Write] Creating file 'fibonacci.py'
+✅ Tool execution completed
 
-# 最終結果
-✓ 正常に完了しました（実行時間: 2.3秒）
+# アシスタント応答
+フィボナッチ数列を生成する関数を作成しました。
 ```
 
 #### 5.3 色分け仕様
 - アシスタントメッセージ: デフォルト色
-- ツール使用結果: 青色（ANSIエスケープコード使用）
+- ツール使用結果: 青色（🔧 [Tool: ...] 形式）
+- ツール完了: 緑色（✅ Tool execution completed）
 - エラーメッセージ: 赤色
-- システムメッセージ: 灰色
+- 成功メッセージ: 緑色（✓ で始まる）
 
 ### 6. ストリーミング
 - Claude Code SDKの非同期ストリーミングをLLMのストリーミング機能として実装
@@ -115,7 +118,7 @@ class ClaudeCode(llm.Model):
 
 @llm.hookimpl
 def register_models(register):
-    register(ClaudeCode())
+    register(ClaudeCode(), aliases=("cc",))
 ```
 
 ## 技術的な考慮事項
@@ -130,11 +133,12 @@ def register_models(register):
 - `TextBlock`オブジェクトから`text`フィールドを抽出
 - リスト形式のコンテンツ（複数TextBlock）をループ処理
 - 文字列コンテンツ、オブジェクトコンテンツの両方に対応
+- `ToolUseBlock`の検出とツール実行過程の表示
 
 ### 3. プラグイン登録
 - `@llm.hookimpl`デコレータを使用
-- `register_models(register)`関数でモデルを登録
-- `llm.default_model`は使用不可のため独自の登録機構を実装
+- `register(ClaudeCode(), aliases=("cc",))`でエイリアス付きで登録
+- LLMフレームワークの公式エイリアス登録方法を使用
 
 ### 4. ログ記録
 - LLMのログ機能を活用
@@ -145,9 +149,9 @@ def register_models(register):
 
 ## 将来の拡張
 
-### Phase 2（ツール使用の有効化）
-- 特定のツールを有効化するオプション追加
-- `-o tools read,write`のような形式
+### Phase 2（追加ツールの有効化）
+- より多くのツールを有効化するオプション追加
+- Bash、Glob、Grepなどの追加ツール対応
 
 ### Phase 3（高度なオプション）
 - `system_prompt`のカスタマイズ
@@ -177,10 +181,12 @@ def register_models(register):
 
 ### ✅ 完了した機能
 - Claude Code SDKとの統合（`claude-code-sdk` v0.0.11）
-- プラグイン登録機構
+- プラグイン登録機構（エイリアス`cc`対応）
 - 同期・非同期両方の実行方式
 - ストリーミング対応
 - TextBlockメッセージ処理
+- ReadとWriteツールの使用可能
+- ツール実行過程のリアルタイム表示
 - カラー出力（ツール・エラー・成功メッセージ）
 - 包括的なテストスイート
 - エラーハンドリング
@@ -211,7 +217,14 @@ uv run ruff check --fix --extend-select I
 
 ### プラグインのテスト実行
 ```bash
+# 基本的なテスト
 uv run llm -m claude-code "こんにちは"
+
+# エイリアスでのテスト
+uv run llm -m cc "こんにちは"
+
+# ツール使用のテスト
+uv run llm -m cc "Hello Worldを出力するPythonスクリプトを作成"
 ```
 
 ### 開発環境セットアップ
