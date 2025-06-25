@@ -99,7 +99,7 @@ cd llm-claude-code
 ```
 Then create a new virtual environment and install the dependencies and test dependencies:
 ```bash
-uv sync --extra test
+uv sync --extra test --extra dev
 ```
 To run the tests:
 ```bash
