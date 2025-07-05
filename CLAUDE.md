@@ -34,15 +34,22 @@ llm -m cc "hello worldを出力するスクリプトを作成"
 - Claude Code CLIの認証設定を継承
 
 ### 3. ツール使用
-- ReadとWriteツールが使用可能（`allowed_tools=["Read", "Write"]`）
+- 複数のツールが使用可能（`allowed_tools=["Read", "Write", "Bash", "TodoRead", "TodoWrite"]`）
 - ツール実行過程をリアルタイムで表示
-- ファイル操作とコード生成が可能
+- ファイル操作、コード実行、タスク管理が可能
+
+#### 3.1 使用可能なツール
+- **Read**: ファイル読み取り
+- **Write**: ファイル作成・書き込み
+- **Bash**: コマンド実行
+- **TodoRead**: タスクリスト読み取り
+- **TodoWrite**: タスクリスト書き込み
 
 ### 4. オプション
 - LLMオプション（`-o`）をサポート
 - Claude Code SDKのデフォルト設定を使用
 - `max_turns=1`で単発応答に制限
-- `allowed_tools=["Read", "Write"]`でファイル操作を有効化
+- `allowed_tools=["Read", "Write", "Bash", "TodoRead", "TodoWrite"]`で多様なツールを有効化
 
 #### 4.1 デバッグオプション
 ```bash
@@ -70,6 +77,9 @@ llm -m cc -o debug true "プロンプト"
 🐛 [DEBUG] Tool use detected: Write
 🐛 [DEBUG] Tool input: {'file_path': '/path/to/hello.py', 'content': 'print("Hello World")'}
 🔧 [Tool: Write] Creating file '/path/to/hello.py'
+🐛 [DEBUG] Tool use detected: Bash
+🐛 [DEBUG] Tool input: {'command': 'python /path/to/hello.py'}
+🔧 [Tool: Bash] Executing: python /path/to/hello.py
 ✅ Tool execution completed
 ```
 
@@ -89,6 +99,8 @@ Claude Code SDKからのメッセージを処理：
 # ツール使用結果（色付き表示）
 🔧 [Tool: Read] Reading file 'example.py'
 🔧 [Tool: Write] Creating file 'fibonacci.py'
+🔧 [Tool: Bash] Executing: python fibonacci.py
+🔧 [Tool: TodoWrite] Writing 3 todo items
 ✅ Tool execution completed
 
 # アシスタント応答
@@ -226,7 +238,7 @@ def register_models(register):
 - 同期・非同期両方の実行方式
 - ストリーミング対応
 - TextBlockメッセージ処理
-- ReadとWriteツールの使用可能
+- 5つのツールの使用可能（Read, Write, Bash, TodoRead, TodoWrite）
 - ツール実行過程のリアルタイム表示
 - カラー出力（ツール・エラー・成功メッセージ）
 - 包括的なテストスイート

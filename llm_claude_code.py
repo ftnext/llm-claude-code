@@ -131,6 +131,16 @@ class ClaudeCode(llm.Model):
                     elif tool_name == "Read":
                         file_path = tool_input.get("file_path", "unknown")
                         result_text += f"\n🔧 [Tool: Read] Reading file '{file_path}'\n"
+                    elif tool_name == "Bash":
+                        command = tool_input.get("command", "unknown command")
+                        result_text += f"\n🔧 [Tool: Bash] Executing: {command[:50]}{'...' if len(command) > 50 else ''}\n"
+                    elif tool_name == "TodoRead":
+                        result_text += "\n🔧 [Tool: TodoRead] Reading todo list\n"
+                    elif tool_name == "TodoWrite":
+                        todos_count = len(tool_input.get("todos", []))
+                        result_text += (
+                            f"\n🔧 [Tool: TodoWrite] Writing {todos_count} todo items\n"
+                        )
                     else:
                         result_text += f"\n🔧 [Tool: {tool_name}] Executing\n"
                     continue
@@ -161,7 +171,10 @@ class ClaudeCode(llm.Model):
         try:
             messages = []
 
-            options = ClaudeCodeOptions(max_turns=1, allowed_tools=["Read", "Write"])
+            options = ClaudeCodeOptions(
+                max_turns=1,
+                allowed_tools=["Read", "Write", "Bash", "TodoRead", "TodoWrite"],
+            )
 
             if debug:
                 print(f"🐛 [DEBUG] Claude Code SDK options: {options}")
@@ -194,7 +207,10 @@ class ClaudeCode(llm.Model):
     async def _stream_execute(self, prompt, debug=False) -> AsyncGenerator[str, None]:
         """Execute prompt with streaming"""
         try:
-            options = ClaudeCodeOptions(max_turns=1, allowed_tools=["Read", "Write"])
+            options = ClaudeCodeOptions(
+                max_turns=1,
+                allowed_tools=["Read", "Write", "Bash", "TodoRead", "TodoWrite"],
+            )
 
             if debug:
                 print(f"🐛 [DEBUG] Streaming with options: {options}")

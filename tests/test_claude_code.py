@@ -104,6 +104,29 @@ def test_format_output_tool_message():
     assert "\033[0m" in result  # Reset color
 
 
+def test_format_output_bash_tool():
+    """Test output formatting for Bash tool messages"""
+    model = ClaudeCode()
+
+    output = "🔧 [Tool: Bash] Executing: ls -la"
+    result = model._format_output(output)
+    assert "\033[34m" in result  # Blue color
+    assert "\033[0m" in result  # Reset color
+
+
+def test_format_output_todo_tools():
+    """Test output formatting for Todo tool messages"""
+    model = ClaudeCode()
+
+    output1 = "🔧 [Tool: TodoRead] Reading todo list"
+    result1 = model._format_output(output1)
+    assert "\033[34m" in result1  # Blue color
+
+    output2 = "🔧 [Tool: TodoWrite] Writing 3 todo items"
+    result2 = model._format_output(output2)
+    assert "\033[34m" in result2  # Blue color
+
+
 def test_format_output_error_message():
     """Test output formatting for error messages"""
     model = ClaudeCode()
@@ -241,3 +264,37 @@ def test_no_options_provided():
     assert args[0] == model._execute_single
     assert args[1] == mock_prompt
     assert not args[2]  # debug=False (default)
+
+
+def test_process_bash_tool_content():
+    """Test processing Bash tool content"""
+    model = ClaudeCode()
+
+    # Mock ToolUseBlock for Bash
+    mock_block = MagicMock()
+    mock_block.name = "Bash"
+    mock_block.input = {"command": "echo 'Hello World'"}
+
+    result = model._process_message_content([mock_block], debug=False)
+    assert "🔧 [Tool: Bash] Executing: echo 'Hello World'" in result
+
+
+def test_process_todo_tool_content():
+    """Test processing Todo tool content"""
+    model = ClaudeCode()
+
+    # Mock ToolUseBlock for TodoRead
+    mock_block_read = MagicMock()
+    mock_block_read.name = "TodoRead"
+    mock_block_read.input = {}
+
+    result = model._process_message_content([mock_block_read], debug=False)
+    assert "🔧 [Tool: TodoRead] Reading todo list" in result
+
+    # Mock ToolUseBlock for TodoWrite
+    mock_block_write = MagicMock()
+    mock_block_write.name = "TodoWrite"
+    mock_block_write.input = {"todos": [{"id": "1", "content": "test"}]}
+
+    result = model._process_message_content([mock_block_write], debug=False)
+    assert "🔧 [Tool: TodoWrite] Writing 1 todo items" in result
