@@ -1,9 +1,10 @@
 import time
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Optional
 
 import anyio
 import llm
 from claude_code_sdk import ClaudeCodeOptions, query
+from pydantic import Field
 
 
 class CLINotFoundError(Exception):
@@ -28,15 +29,33 @@ class ClaudeCode(llm.Model):
     model_id = "claude-code"
     can_stream = True
 
+    class Options(llm.Options):
+        debug: Optional[bool] = Field(
+            description="Enable debug output to show tool execution details",
+            default=False,
+        )
+
     def execute(self, prompt, stream, response, conversation=None):
         """Execute prompt using Claude Code SDK"""
         start_time = time.time()
 
+        # Check for debug option
+        debug = False
+        if hasattr(prompt, "options") and prompt.options:
+            debug = prompt.options.debug or False
+
+        if debug:
+            print("🐛 [DEBUG] Starting execution with debug mode enabled")
+            print(
+                f"🐛 [DEBUG] Prompt: {prompt.prompt[:100]}{'...' if len(prompt.prompt) > 100 else ''}"
+            )
+            print(f"🐛 [DEBUG] Stream mode: {stream}")
+
         try:
             if stream:
-                return self._sync_stream_execute(prompt, response, start_time)
+                return self._sync_stream_execute(prompt, response, start_time, debug)
             else:
-                result = anyio.run(self._execute_single, prompt)
+                result = anyio.run(self._execute_single, prompt, debug)
                 response.response_json = {
                     "execution_time": time.time() - start_time,
                     "model_id": self.model_id,
@@ -51,14 +70,14 @@ class ClaudeCode(llm.Model):
             }
             raise ProcessError(error_msg)
 
-    def _sync_stream_execute(self, prompt, response, start_time):
+    def _sync_stream_execute(self, prompt, response, start_time, debug=False):
         """Synchronous wrapper for streaming execution"""
 
         def stream_generator():
             try:
 
                 async def async_gen():
-                    async for chunk in self._stream_execute(prompt):
+                    async for chunk in self._stream_execute(prompt, debug):
                         yield chunk
 
                 for chunk in anyio.run(self._collect_async_generator, async_gen()):
@@ -85,7 +104,7 @@ class ClaudeCode(llm.Model):
             results.append(item)
         return results
 
-    def _process_message_content(self, content):
+    def _process_message_content(self, content, debug=False):
         """Process message content and return formatted text"""
         if isinstance(content, str):
             return content
@@ -97,6 +116,11 @@ class ClaudeCode(llm.Model):
             for block in content:
                 # Handle ToolUseBlock
                 if hasattr(block, "name") or "ToolUse" in str(type(block)):
+                    if debug:
+                        print(
+                            f"🐛 [DEBUG] Tool use detected: {getattr(block, 'name', 'Unknown')}"
+                        )
+                        print(f"🐛 [DEBUG] Tool input: {getattr(block, 'input', {})}")
                     tool_name = getattr(block, "name", "Unknown")
                     tool_input = getattr(block, "input", {})
                     if tool_name == "Write":
@@ -132,37 +156,62 @@ class ClaudeCode(llm.Model):
         else:
             return str(content)
 
-    async def _execute_single(self, prompt) -> str:
+    async def _execute_single(self, prompt, debug=False) -> str:
         """Execute single prompt without streaming"""
         try:
             messages = []
 
+            options = ClaudeCodeOptions(max_turns=1, allowed_tools=["Read", "Write"])
+
+            if debug:
+                print(f"🐛 [DEBUG] Claude Code SDK options: {options}")
+
             async for message in query(
                 prompt=prompt.prompt,
-                options=ClaudeCodeOptions(max_turns=1, allowed_tools=["Read", "Write"]),
+                options=options,
             ):
                 messages.append(message)
 
             # Extract text content from messages
             result_text = ""
+            if debug:
+                print(f"🐛 [DEBUG] Processing {len(messages)} messages")
+
             for message in messages:
                 if hasattr(message, "content") and message.content:
-                    result_text += self._process_message_content(message.content)
+                    if debug:
+                        print(f"🐛 [DEBUG] Message type: {type(message).__name__}")
+                        print(
+                            f"🐛 [DEBUG] Content type: {type(message.content).__name__}"
+                        )
+                    result_text += self._process_message_content(message.content, debug)
 
             return self._format_output(result_text)
 
         except Exception as e:
             raise ProcessError(f"Failed to execute Claude Code SDK: {str(e)}")
 
-    async def _stream_execute(self, prompt) -> AsyncGenerator[str, None]:
+    async def _stream_execute(self, prompt, debug=False) -> AsyncGenerator[str, None]:
         """Execute prompt with streaming"""
         try:
+            options = ClaudeCodeOptions(max_turns=1, allowed_tools=["Read", "Write"])
+
+            if debug:
+                print(f"🐛 [DEBUG] Streaming with options: {options}")
+
             async for message in query(
                 prompt=prompt.prompt,
-                options=ClaudeCodeOptions(max_turns=1, allowed_tools=["Read", "Write"]),
+                options=options,
             ):
                 if hasattr(message, "content") and message.content:
-                    content_text = self._process_message_content(message.content)
+                    if debug:
+                        print(
+                            f"🐛 [DEBUG] Streaming message type: {type(message).__name__}"
+                        )
+                        print(
+                            f"🐛 [DEBUG] Streaming content type: {type(message.content).__name__}"
+                        )
+                    content_text = self._process_message_content(message.content, debug)
                     formatted_text = self._format_output(content_text)
                     if formatted_text.strip():
                         yield formatted_text

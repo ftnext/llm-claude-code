@@ -39,10 +39,39 @@ llm -m cc "hello worldを出力するスクリプトを作成"
 - ファイル操作とコード生成が可能
 
 ### 4. オプション
-- 初期実装ではLLMオプション（`-o`）は提供しない
+- LLMオプション（`-o`）をサポート
 - Claude Code SDKのデフォルト設定を使用
 - `max_turns=1`で単発応答に制限
 - `allowed_tools=["Read", "Write"]`でファイル操作を有効化
+
+#### 4.1 デバッグオプション
+```bash
+# デバッグモードを有効化
+llm -m claude-code -o debug true "プロンプト"
+
+# エイリアスでの使用
+llm -m cc -o debug true "プロンプト"
+```
+
+デバッグモードでは以下の情報を出力：
+- 実行されるツールの詳細情報
+- Claude Code SDKへの送信パラメータ
+- メッセージ処理の過程
+- エラー発生時の詳細情報
+
+#### 4.2 デバッグ出力例
+```
+🐛 [DEBUG] Starting execution with debug mode enabled
+🐛 [DEBUG] Prompt: Hello Worldを出力するPythonスクリプトを作成
+🐛 [DEBUG] Stream mode: true
+🐛 [DEBUG] Streaming with options: ClaudeCodeOptions(allowed_tools=['Read', 'Write'], max_turns=1, ...)
+🐛 [DEBUG] Streaming message type: AssistantMessage
+🐛 [DEBUG] Streaming content type: list
+🐛 [DEBUG] Tool use detected: Write
+🐛 [DEBUG] Tool input: {'file_path': '/path/to/hello.py', 'content': 'print("Hello World")'}
+🔧 [Tool: Write] Creating file '/path/to/hello.py'
+✅ Tool execution completed
+```
 
 ### 5. 出力形式
 
@@ -102,18 +131,30 @@ llm-claude-code/
 ```python
 from claude_code_sdk import query, ClaudeCodeOptions
 import anyio
+from pydantic import Field
+from typing import Optional
 
 class ClaudeCode(llm.Model):
     model_id = "claude-code"
-    aliases = ("cc",)
     can_stream = True
     
+    class Options(llm.Options):
+        debug: Optional[bool] = Field(
+            description="Enable debug output to show tool execution details",
+            default=False
+        )
+    
     def execute(self, prompt, stream, response, conversation=None):
+        # デバッグオプションの取得
+        debug = False
+        if hasattr(prompt, 'options') and prompt.options:
+            debug = prompt.options.debug or False
+        
         # anyioを使用してClaude Code SDKと連携
         if stream:
-            return self._sync_stream_execute(prompt, response, start_time)
+            return self._sync_stream_execute(prompt, response, start_time, debug)
         else:
-            result = anyio.run(self._execute_single, prompt)
+            result = anyio.run(self._execute_single, prompt, debug)
             return [result]
 
 @llm.hookimpl
@@ -190,6 +231,11 @@ def register_models(register):
 - カラー出力（ツール・エラー・成功メッセージ）
 - 包括的なテストスイート
 - エラーハンドリング
+- **デバッグモード（`-o debug true`）**
+  - 実行過程の詳細出力
+  - ツール使用の詳細情報
+  - メッセージ処理の透明性向上
+  - 問題診断の支援
 
 ### 📋 技術仕様
 - パッケージ: `claude-code-sdk>=0.0.11`
@@ -197,6 +243,7 @@ def register_models(register):
 - Python要件: >=3.10
 - テスト: pytest + pytest-asyncio
 - フォーマッタ: ruff
+- オプション管理: pydantic Field を使用したLLM標準オプション
 
 ## 開発コマンド
 
@@ -225,6 +272,9 @@ uv run llm -m cc "こんにちは"
 
 # ツール使用のテスト
 uv run llm -m cc "Hello Worldを出力するPythonスクリプトを作成"
+
+# デバッグモードでのテスト
+uv run llm -m cc -o debug true "Hello Worldを出力するPythonスクリプトを作成"
 ```
 
 ### 開発環境セットアップ
