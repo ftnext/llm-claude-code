@@ -1,6 +1,6 @@
 [project]
 name = "llm-claude-code"
-version = "0.0.2"
+version = "0.0.3"
 description = "LLM plugin for Claude Code SDK integration"
 readme = "README.md"
 authors = [{ name = "nikkie", email = "takuyafjp+develop@gmail.com" }]
