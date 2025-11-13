@@ -43,7 +43,7 @@ async def test_execute_single_success(mock_query):
     mock_prompt.prompt = "test prompt"
 
     model = ClaudeCode()
-    result = await model._execute_single(mock_prompt, debug=False)
+    result = await model._execute_single(mock_prompt, debug=False)  # noqa: SLF001
     assert "Test response from Claude Code" in result
 
 
@@ -60,7 +60,7 @@ async def test_execute_single_error(mock_query):
     model = ClaudeCode()
 
     with pytest.raises(ProcessError, match="Failed to execute Claude Code SDK"):
-        await model._execute_single(mock_prompt, debug=False)
+        await model._execute_single(mock_prompt, debug=False)  # noqa: SLF001
 
 
 @pytest.mark.asyncio
@@ -85,9 +85,10 @@ async def test_stream_execute_success(mock_query):
     mock_prompt.prompt = "test prompt"
 
     model = ClaudeCode()
-    results = []
-    async for chunk in model._stream_execute(mock_prompt, debug=False):
-        results.append(chunk)
+    results = [
+        chunk
+        async for chunk in model._stream_execute(mock_prompt, debug=False)  # noqa: SLF001
+    ]
 
     assert len(results) == 2
     assert "First chunk" in results[0]
@@ -99,7 +100,7 @@ def test_format_output_tool_message():
     model = ClaudeCode()
 
     output = "[Tool: Read] Reading file"
-    result = model._format_output(output)
+    result = model._format_output(output)  # noqa: SLF001
     assert "\033[34m" in result  # Blue color
     assert "\033[0m" in result  # Reset color
 
@@ -109,7 +110,7 @@ def test_format_output_bash_tool():
     model = ClaudeCode()
 
     output = "🔧 [Tool: Bash] Executing: ls -la"
-    result = model._format_output(output)
+    result = model._format_output(output)  # noqa: SLF001
     assert "\033[34m" in result  # Blue color
     assert "\033[0m" in result  # Reset color
 
@@ -119,11 +120,11 @@ def test_format_output_todo_tools():
     model = ClaudeCode()
 
     output1 = "🔧 [Tool: TodoRead] Reading todo list"
-    result1 = model._format_output(output1)
+    result1 = model._format_output(output1)  # noqa: SLF001
     assert "\033[34m" in result1  # Blue color
 
     output2 = "🔧 [Tool: TodoWrite] Writing 3 todo items"
-    result2 = model._format_output(output2)
+    result2 = model._format_output(output2)  # noqa: SLF001
     assert "\033[34m" in result2  # Blue color
 
 
@@ -132,7 +133,7 @@ def test_format_output_error_message():
     model = ClaudeCode()
 
     output = "Error: something failed"
-    result = model._format_output(output)
+    result = model._format_output(output)  # noqa: SLF001
     assert "\033[31m" in result  # Red color
 
 
@@ -141,7 +142,7 @@ def test_format_output_success_message():
     model = ClaudeCode()
 
     output = "✓ Task completed successfully"
-    result = model._format_output(output)
+    result = model._format_output(output)  # noqa: SLF001
     assert "\033[32m" in result  # Green color
 
 
@@ -150,7 +151,7 @@ def test_format_output_regular_message():
     model = ClaudeCode()
 
     output = "Regular assistant message"
-    result = model._format_output(output)
+    result = model._format_output(output)  # noqa: SLF001
     assert result == "Regular assistant message"
 
 
@@ -184,9 +185,9 @@ def test_debug_option_from_prompt():
     # Verify anyio.run was called with the correct arguments
     mock_anyio.assert_called_once()
     args, kwargs = mock_anyio.call_args
-    assert args[0] == model._execute_single
+    assert args[0] == model._execute_single  # noqa: SLF001
     assert args[1] == mock_prompt
-    assert args[2]  # debug=True
+    assert kwargs["debug"] is True
 
 
 def test_debug_option_false():
@@ -211,13 +212,13 @@ def test_debug_option_false():
     # Verify anyio.run was called with the correct arguments
     mock_anyio.assert_called_once()
     args, kwargs = mock_anyio.call_args
-    assert args[0] == model._execute_single
+    assert args[0] == model._execute_single  # noqa: SLF001
     assert args[1] == mock_prompt
-    assert not args[2]  # debug=False
+    assert kwargs["debug"] is False
 
 
-@patch("builtins.print")
-def test_debug_output_in_execute(mock_print):
+@patch("sys.stderr.write")
+def test_debug_output_in_execute(mock_stderr_write):
     """Test that debug output is printed when debug mode is enabled"""
     model = ClaudeCode()
 
@@ -235,10 +236,10 @@ def test_debug_output_in_execute(mock_print):
     with patch("llm_claude_code.anyio.run", return_value="test result"):
         model.execute(mock_prompt, False, mock_response)
 
-    # Verify debug output was printed
-    mock_print.assert_any_call("🐛 [DEBUG] Starting execution with debug mode enabled")
-    mock_print.assert_any_call("🐛 [DEBUG] Prompt: test prompt for debugging")
-    mock_print.assert_any_call("🐛 [DEBUG] Stream mode: False")
+    # Verify debug output was written to stderr
+    mock_stderr_write.assert_any_call("🐛 [DEBUG] Starting execution with debug mode enabled\n")
+    mock_stderr_write.assert_any_call("🐛 [DEBUG] Prompt: test prompt for debugging\n")
+    mock_stderr_write.assert_any_call("🐛 [DEBUG] Stream mode: False\n")
 
 
 def test_no_options_provided():
@@ -261,9 +262,9 @@ def test_no_options_provided():
     # Verify anyio.run was called with the correct arguments
     mock_anyio.assert_called_once()
     args, kwargs = mock_anyio.call_args
-    assert args[0] == model._execute_single
+    assert args[0] == model._execute_single  # noqa: SLF001
     assert args[1] == mock_prompt
-    assert not args[2]  # debug=False (default)
+    assert kwargs["debug"] is False  # debug=False (default)
 
 
 def test_process_bash_tool_content():
@@ -275,7 +276,7 @@ def test_process_bash_tool_content():
     mock_block.name = "Bash"
     mock_block.input = {"command": "echo 'Hello World'"}
 
-    result = model._process_message_content([mock_block], debug=False)
+    result = model._process_message_content([mock_block], debug=False)  # noqa: SLF001
     assert "🔧 [Tool: Bash] Executing: echo 'Hello World'" in result
 
 
@@ -288,7 +289,7 @@ def test_process_todo_tool_content():
     mock_block_read.name = "TodoRead"
     mock_block_read.input = {}
 
-    result = model._process_message_content([mock_block_read], debug=False)
+    result = model._process_message_content([mock_block_read], debug=False)  # noqa: SLF001
     assert "🔧 [Tool: TodoRead] Reading todo list" in result
 
     # Mock ToolUseBlock for TodoWrite
@@ -296,5 +297,5 @@ def test_process_todo_tool_content():
     mock_block_write.name = "TodoWrite"
     mock_block_write.input = {"todos": [{"id": "1", "content": "test"}]}
 
-    result = model._process_message_content([mock_block_write], debug=False)
+    result = model._process_message_content([mock_block_write], debug=False)  # noqa: SLF001
     assert "🔧 [Tool: TodoWrite] Writing 1 todo items" in result
